@@ -1,5 +1,5 @@
 import random
-
+import math
 
 RHYTHMIC_DATABASE = {
     "rhythms_by_onset": {
@@ -30,7 +30,8 @@ class GeradorDeRitmo: # gera um ritmo aleatorio ou caixa
         return f'NUM NOTAS: {self.num_notas}'
 
     def gerar_aleatorio(self):
-        onsets = sorted(random.sample(range(1,17), k = self.num_notas)) # gera onsets aleatorios e os organiza
+        populacao_de_onsets = max(17, self.num_notas * 2) 
+        onsets = sorted(random.sample(range(populacao_de_onsets), k = self.num_notas)) # gera onsets aleatorios e os organiza
         print(onsets)
         return self.onset_para_duracao(onsets)
     
@@ -50,11 +51,16 @@ class GeradorDeRitmo: # gera um ritmo aleatorio ou caixa
         return duracoes
     
     def escolher_ritmo_caixa(self):
-        peso_num_notas = [num_notas['weight'] for num_notas in RHYTHMIC_DATABASE['rhythms_by_onset'].values()] # retira os pesos do dicionario
-        self.num_notas = random.choices(list(RHYTHMIC_DATABASE['rhythms_by_onset']), weights = peso_num_notas, k = 1)[0] # escolhe quantas notas vao ter na frase
-        ritmo_escolhido = random.choice(RHYTHMIC_DATABASE['rhythms_by_onset'][self.num_notas]['patterns']) # escolhe os intervalos DNA especifico
-        return ritmo_escolhido
-    
+        num_notas_str = str(self.num_notas)
+
+        if num_notas_str in RHYTHMIC_DATABASE['rhythms_by_onset']:
+            ritmo_escolhido = random.choice(RHYTHMIC_DATABASE['rhythms_by_onset'][num_notas_str]['patterns'])
+            return ritmo_escolhido
+        else:
+            print(f"Aviso: Nenhum padrão de 'caixa' para {self.num_notas} notas. Gerando ritmo aleatório.")
+
+            return random.choice(RHYTHMIC_DATABASE['rhythms_by_onset']['4']['patterns'])
+        
     def escolher_posicao_inicial(self):
         peso_posicao_inicial = [i for i in RHYTHMIC_DATABASE['positional_weights']['mainbeat onsets'].values()] # retira os pesos do dicionario
         posicao_inicial_escolhida = random.choices(list(RHYTHMIC_DATABASE['positional_weights']['mainbeat onsets']), weights = peso_posicao_inicial, k=1)[0] # escolhe a posicao inicial especifica
@@ -64,15 +70,26 @@ class GeradorDeRitmo: # gera um ritmo aleatorio ou caixa
         onsets = []
         ultimo_onset = posicao_inicial_escolhida
         onsets.append(ultimo_onset)
-        for intervalo in ritmo_escolhido:
+        intervalos_para_processar = ritmo_escolhido[:self.num_notas - 1]
+
+        for intervalo in intervalos_para_processar:
             ultimo_onset += intervalo
-            if ultimo_onset < 17: onsets.append(ultimo_onset) 
-            else: break
+            if ultimo_onset < 16:
+                onsets.append(ultimo_onset)
+            else:
+                break
+        self.num_notas = len(onsets)
+
         return onsets
 
     def onset_para_duracao(self,onsets:list)->list:
         duracoes = [(onsets[i+1] - onsets[i]) * 0.25 for i in range(len(onsets) - 1)]
         duracoes.append((16 - onsets[-1]) * 0.25)
+        print (f'DURACOES ANTES: {duracoes}')
+        soma = sum(duracoes)
+        if soma > 0:
+            tempo_ate_compasso = math.ceil(soma / 4) * 4 - soma
+            duracoes[-1] += tempo_ate_compasso
         print(f'DURACOES: {duracoes}')
         return duracoes
     

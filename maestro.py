@@ -68,20 +68,22 @@ MODO_MAP = {
 }
 
 def gerar_notas_acorde(grau_acorde, tonalidade_harmonica, tonica_midi, oitava_base=3):
-    """ Gera as notas MIDI para um acorde com base na tônica e tonalidade. """
-    if tonalidade_harmonica not in ESCALAS_E_ACORDES:
-        print(f"Aviso: Tonalidade harmônica '{tonalidade_harmonica}' não definida. Usando 'maior'.")
-        tonalidade_harmonica = 'maior'
+    if grau_acorde in ESCALAS_E_ACORDES[tonalidade_harmonica]:
+        dados_acorde = ESCALAS_E_ACORDES[tonalidade_harmonica][grau_acorde]
+    else:
+        # 2. Se não encontrar, procura em TODAS as tonalidades (o "fallback")
+        for modo in ESCALAS_E_ACORDES:
+            if grau_acorde in ESCALAS_E_ACORDES[modo]:
+                dados_acorde = ESCALAS_E_ACORDES[modo][grau_acorde]
+                break  # Encontrou, pode parar de procurar
 
-    if grau_acorde not in ESCALAS_E_ACORDES[tonalidade_harmonica]:
-        grau_alternativo = grau_acorde.upper() if grau_acorde.islower() else grau_acorde.lower()
-        if grau_alternativo in ESCALAS_E_ACORDES[tonalidade_harmonica]:
-            grau_acorde = grau_alternativo
-        else:
-            print(f"Aviso: Acorde '{grau_acorde}' não encontrado para '{tonalidade_harmonica}'. Pulando.")
-            return []
+    # 3. Se ainda assim não encontrou, desiste
+    if dados_acorde is None:
+        print(f"Aviso: Acorde '{grau_acorde}' não encontrado em nenhuma tonalidade. Pulando.")
+        return []
 
-    intervalo_fundamental, tipo_estrutura = ESCALAS_E_ACORDES[tonalidade_harmonica][grau_acorde]
+    # Se encontrou o acorde, continua a lógica original
+    intervalo_fundamental, tipo_estrutura = dados_acorde
     estrutura = ESTRUTURAS_DE_ACORDES[tipo_estrutura]
     tonica_base = 12 * oitava_base + (tonica_midi % 12)
     nota_fundamental_acorde = tonica_base + intervalo_fundamental
@@ -105,7 +107,7 @@ def criar_secao_musical(qnt_respostas, escala):
     return frase_final
 
 
-def salvar_midi(composicao, progressao_base, gerador_harmonia, tonica, modo_harmonico, nome_arquivo="musica_gerada.mid"):
+def salvar_midi(composicao, progressao_base, gerador_harmonia, tonica, modo_harmonico, nome_arquivo="classic_demo.mid"):
     track_melody, track_harmony, channel, tempo_bpm = 0, 1, 0, 120
     
     MyMIDI = MIDIFile(2)
@@ -115,7 +117,7 @@ def salvar_midi(composicao, progressao_base, gerador_harmonia, tonica, modo_harm
     print("\nAdicionando melodia à trilha 0...")
     tempo_atual_melodia = 0
     for nota in composicao.notas:
-        if not nota.pausa:
+        if not nota.pausa and nota.duracao > 0:
             MyMIDI.addNote(track_melody, channel, nota.pitch + 12, tempo_atual_melodia, nota.duracao, volume=100)
         tempo_atual_melodia += nota.duracao
     
@@ -126,12 +128,9 @@ def salvar_midi(composicao, progressao_base, gerador_harmonia, tonica, modo_harm
     print("Adicionando harmonia à trilha 1...")
 
     num_acordes_base = len(progressao_base)
+    print (f'numero de acordes: {num_acordes_base}')
     ritmos = GeradorDeRitmo(num_acordes_base).gerar_caixa()
-    
-    soma = sum(ritmos)
-    if soma > 0:
-        tempo_ate_compasso = math.ceil(soma / 4) * 4 - soma
-        ritmos[-1] += tempo_ate_compasso
+
     
     ritmo_troca_fixo = [ritmo * 2 for ritmo in ritmos]
 
@@ -147,9 +146,9 @@ def salvar_midi(composicao, progressao_base, gerador_harmonia, tonica, modo_harm
             pitches_acorde = gerar_notas_acorde(acorde_str, modo_harmonico, tonica)
             
             if pitches_acorde:
-                duracao_real = min(duracao_acorde, duracao_total_melodia - tempo_atual_harmonia)
+
                 for pitch in pitches_acorde:
-                    MyMIDI.addNote(track_harmony, channel, pitch+12, tempo_atual_harmonia, duracao_real, volume=60)
+                    MyMIDI.addNote(track_harmony, channel, pitch+12, tempo_atual_harmonia, duracao_acorde, volume=60)
             
             tempo_atual_harmonia += duracao_acorde
     
@@ -174,7 +173,7 @@ if __name__ == "__main__":
     modo_harmonia = MODO_MAP[MODO_NOME]
     gerador_harmonia = GeradorDeHarmonia(modo=modo_harmonia)
     
-    qnt_recursoes = 4
+    qnt_recursoes = 5
     print(f"Gerando melodia em '{MODO_NOME}' com tônica {TONICA_MIDI}...")
     composicao_final = criar_secao_musical(qnt_recursoes, escala_melodica)
     print("Melodia gerada.")
