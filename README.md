@@ -41,7 +41,7 @@ Primeiro, clone o repositório para a sua máquina local e navegue para o
 diretório do projeto:
 
     git clone https://github.com/thoadchapman/CLASSIC-.git
-    cd classics
+    cd CLASSIC-
 
 Em seguida, crie um ambiente virtual e instale as dependências listadas
 no arquivo requirements.txt:
